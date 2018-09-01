@@ -8,9 +8,9 @@ It can handle fairly large files unlike the windows version.
 
 
 # What It looks like
-[screenshot](https://raw.githubusercontent.com/GnikDroy/py-notepad/master/screenshots/screenshot.png)
+![screenshot](https://raw.githubusercontent.com/GnikDroy/py-notepad/master/screenshots/screenshot.png)
 
-** This project was for fun so, don't expect to have any future updates **
+**This project was for fun so, don't expect to have any future updates**
 
 # How to Run
 
