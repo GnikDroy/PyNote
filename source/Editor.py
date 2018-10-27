@@ -1,3 +1,4 @@
+#!/usr/bin/env python2
 import Tkinter as tk
 import ttk
 import os
@@ -13,7 +14,12 @@ class Editor(tk.Tk):
 
         #This function is necessary to start tk
         tk.Tk.__init__(self)
+        #Set the themes
+        self.style = ttk.Style()
+        self.style.theme_use('clam')
+        self.style_scrollbars()
         self.name="Py Notepad"
+        #set available keywords
         self.get_keywords("keywords.ini")
         self.keywords=[]
         #This calls exit_editor when the cross button is pressed.
@@ -29,7 +35,41 @@ class Editor(tk.Tk):
         #This initializes all the gui elements
         self.initialize()
         self.footer_update()
-    
+        
+    def style_scrollbars(self):
+        self.style.layout("My.Vertical.TScrollbar",
+        [('My.Vertical.Scrollbar.trough', {'children':
+            [
+             ('Vertical.Scrollbar.thumb', {'unit': '1', 'children':
+                 [('Vertical.Scrollbar.grip', {'sticky': ''})],
+            'sticky': 'nswe'})],
+        'sticky': 'ns'})])
+        self.style.configure("My.Vertical.TScrollbar", *self.style.configure("Vertical.TScrollbar"))
+        self.style.configure("My.Vertical.TScrollbar", troughcolor="#111111")
+        self.style.configure("Vertical.TScrollbar", gripcount=0,
+                background="#313131", darkcolor="#313131", lightcolor="#313131",
+                troughcolor="#313131", bordercolor="#111111")
+        self.style.map('My.Vertical.TScrollbar',
+                background=[('active',"#313131")],
+        )
+        
+        
+        self.style.layout("My.Horizontal.TScrollbar",
+        [('My.Horizontal.Scrollbar.trough', {'children':
+            [
+             ('Horizontal.Scrollbar.thumb', {'unit': '1', 'children':
+                 [('Horizontal.Scrollbar.grip', {'sticky': ''})],
+            'sticky': 'nswe'})],
+        'sticky': 'ew'})])
+        self.style.configure("My.Horizontal.TScrollbar", *self.style.configure("Horizontal.TScrollbar"))
+        self.style.configure("My.Horizontal.TScrollbar", troughcolor="#111111")
+        self.style.configure("Horizontal.TScrollbar", gripcount=0,
+                background="#313131", darkcolor="#313131", lightcolor="#313131",
+                troughcolor="#313131", bordercolor="#111111")
+        self.style.map('My.Horizontal.TScrollbar',
+                background=[('active',"#313131")],
+        )
+        
     def get_keywords(self,filename):
         self.languages={}
         f=open(filename)
@@ -78,10 +118,11 @@ class Editor(tk.Tk):
     def render_mainFrame(self):
 
         #Call grid on all the contents to show in the gui
-        self.linenumbers.grid(column=0,row=0,sticky="NSEW")
+        self.linenumbers.grid(column=0,row=0,rowspan=2,sticky="NSEW")
         self.main_text.grid(column=1,row=0,sticky="NSEW")
-        self.main_scroll_bar.grid(column=2,row=0,sticky="NS")
-        self.footer.grid(column=0,row=1,columnspan=2,sticky="E")
+        self.main_scroll_bar.grid(column=2,row=0,rowspan=2,sticky="NS")
+        self.main_horizontal_scroll_bar.grid(column=1,row=1,sticky="EW")
+        self.footer.grid(column=0,row=2,columnspan=2,sticky="E")
 
         self.grid_rowconfigure(0,weight=1)
         self.grid_rowconfigure(1,weight=0)
@@ -93,6 +134,30 @@ class Editor(tk.Tk):
 
         self.main_text.focus_set()
 
+    def toggle_word_wrap(self,event=None):
+        if not self.word_wrap.get():
+            self.main_horizontal_scroll_bar.grid()
+            self.linenumbers.grid_configure(rowspan=2)
+            self.main_scroll_bar.grid_configure(rowspan=2)
+            self.footer.grid_configure(row=2)
+            if not self.footer_view.get():
+                self.footer.grid_remove()
+            if not self.linenumber_view.get():
+                self.linenumbers.grid_remove()
+            self.main_text.configure(wrap="none")
+            self._on_change()
+        else:
+            self.main_horizontal_scroll_bar.grid_remove()
+            self.linenumbers.grid_configure(rowspan=1)
+            self.main_scroll_bar.grid_configure(rowspan=1)
+            self.footer.grid_configure(row=1)
+            if not self.linenumber_view.get():
+                self.linenumbers.grid_remove()
+            if not self.footer_view.get():
+                self.footer.grid_remove()
+            self.main_text.configure(wrap="char")
+            self._on_change()
+            
     def toggle_linenumber_view(self):
         if not self.linenumber_view.get():
             self.linenumbers.grid_remove()
@@ -116,7 +181,7 @@ class Editor(tk.Tk):
         else:
             self.main_text.bind("<KeyRelease>",self.syntax_highlight,add="+")
             self.syntax_highlight()
-
+            
     def toggle_footer_view(self):
         if not self.footer_view.get():
             self.footer.grid_remove()
@@ -125,7 +190,8 @@ class Editor(tk.Tk):
 
 
     def create_menu(self):
-
+        def pad_menu(string):
+            return " "*5+string+" "*15
         #Creating the Menu objects
 
         self.main_menu=tk.Menu(self)
@@ -135,7 +201,7 @@ class Editor(tk.Tk):
         self.view_menu=tk.Menu(self,tearoff=0)
         self.tools_menu=tk.Menu(self,tearoff=0)
         self.help_menu=tk.Menu(self,tearoff=0)
-
+             
         #setting styles for menus
         self.main_menu.config(bg="#313131",fg="white",activebackground="#4d4d4d",activeforeground="white",activeborderwidth=0,border=0)
         self.file_menu.config(bg="#313131",fg="white",activebackground="#4d4d4d",activeforeground="white",activeborderwidth=0,border=0)
@@ -154,55 +220,59 @@ class Editor(tk.Tk):
 
         #For file menu
 
-        self.file_menu.add_command(label="New",command=self.new_file,accelerator="Ctrl+N")
-        self.file_menu.add_command(label="Open",command=self.open_file,accelerator="Ctrl+O")
+        self.file_menu.add_command(label=pad_menu("New"),command=self.new_file,accelerator="Ctrl+N")
+        self.file_menu.add_command(label=pad_menu("Open"),command=self.open_file,accelerator="Ctrl+O")
         self.file_menu.add_separator()
-        self.file_menu.add_command(label="Save",command=self.save_file,accelerator="Ctrl+S")
-        self.file_menu.add_command(label="Save As",command=self.save_file_as)
+        self.file_menu.add_command(label=pad_menu("Save"),command=self.save_file,accelerator="Ctrl+S")
+        self.file_menu.add_command(label=pad_menu("Save As"),command=self.save_file_as)
         self.file_menu.add_separator()
-        self.file_menu.add_command(label="Quit",command=self.exit_editor)
+        self.file_menu.add_command(label=pad_menu("Quit"),command=self.exit_editor)
 
 
 
         #For edit menu
 
-        self.edit_menu.add_command(label="Copy",command=lambda:self.focus_get().event_generate('<<Copy>>'),accelerator="Ctrl+C")
-        self.edit_menu.add_command(label="Cut",command=lambda:self.focus_get().event_generate('<<Cut>>'),accelerator="Ctrl+X")
-        self.edit_menu.add_command(label="Paste",command=lambda:self.focus_get().event_generate('<<Paste>>'),accelerator="Ctrl+V")
-        self.edit_menu.add_command(label="Select All",command=lambda: self.main_text.tag_add("sel","1.0","end"),accelerator="Ctrl+A")
+        self.edit_menu.add_command(label=pad_menu("Copy"),command=lambda:self.focus_get().event_generate('<<Copy>>'),accelerator="Ctrl+C")
+        self.edit_menu.add_command(label=pad_menu("Cut"),command=lambda:self.focus_get().event_generate('<<Cut>>'),accelerator="Ctrl+X")
+        self.edit_menu.add_command(label=pad_menu("Paste"),command=lambda:self.focus_get().event_generate('<<Paste>>'),accelerator="Ctrl+V")
+        self.edit_menu.add_command(label=pad_menu("Select All"),command=lambda: self.main_text.tag_add("sel","1.0","end"),accelerator="Ctrl+A")
         self.edit_menu.add_separator()
-        self.edit_menu.add_command(label="Undo",command=self.undo_action,accelerator="Ctrl+Z")
-        self.edit_menu.add_command(label="Redo",command=self.redo_action,accelerator="Ctrl+Y")
+        self.edit_menu.add_command(label=pad_menu("Undo"),command=self.undo_action,accelerator="Ctrl+Z")
+        self.edit_menu.add_command(label=pad_menu("Redo"),command=self.redo_action,accelerator="Ctrl+Y")
 
 
 
         #For view menu
         self.highlight_view=tk.BooleanVar()
+        self.word_wrap=tk.BooleanVar()
+        self.word_wrap.set(False)
         self.highlight_view.set(True)
+        self.view_menu.add("checkbutton",variable=self.word_wrap,onvalue=True,offvalue=False,label=pad_menu("Word Wrap"),command=self.toggle_word_wrap)
         self.view_menu.add("checkbutton",variable=self.highlight_view,onvalue=True,offvalue=False
-                            ,label="Highlight Syntax (.py)",command=self.toggle_highlight_view,accelerator="Ctrl+Shift+h")
+                            ,label=pad_menu("Highlight Syntax (.py)"),command=self.toggle_highlight_view,accelerator="Ctrl+Shift+h")
         self.view_menu.add_separator()
+        
         self.linenumber_view=tk.BooleanVar()
         self.linenumber_view.set(True)
         self.footer_view=tk.BooleanVar()
         self.footer_view.set(True)
-        self.view_menu.add("checkbutton",variable=self.linenumber_view,onvalue=True,offvalue=False,label="Show/Hide Line Numbers",command=self.toggle_linenumber_view)
-        self.view_menu.add("checkbutton",variable=self.footer_view,onvalue=True,offvalue=False,label="Show/Hide Footer",command=self.toggle_footer_view)
+        self.view_menu.add("checkbutton",variable=self.linenumber_view,onvalue=True,offvalue=False,label=pad_menu("Show/Hide Line Numbers"),command=self.toggle_linenumber_view)
+        self.view_menu.add("checkbutton",variable=self.footer_view,onvalue=True,offvalue=False,label=pad_menu("Show/Hide Footer"),command=self.toggle_footer_view)
 
 
 
         #For tools menu
 
-        self.tools_menu.add_command(label="Add Date/Time",command=lambda:self.main_text.insert("insert",str(datetime.now()).split(".")[0]))
-        self.tools_menu.add_command(label="Execute",command=self.execute,accelerator="F5")
-        self.tools_menu.add_command(label="Build",command=self.build,accelerator="F6")
-        self.tools_menu.add_command(label="Compile",command=self.compile,accelerator="F8")
+        self.tools_menu.add_command(label=pad_menu("Add Date/Time"),command=lambda:self.main_text.insert("insert",str(datetime.now()).split(".")[0]))
+        self.tools_menu.add_command(label=pad_menu("Execute"),command=self.execute,accelerator="F5")
+        self.tools_menu.add_command(label=pad_menu("Build"),command=self.build,accelerator="F6")
+        self.tools_menu.add_command(label=pad_menu("Compile"),command=self.compile,accelerator="F8")
         
         
 
         #For help menu
 
-        self.help_menu.add_command(label="About",command=self.about,accelerator="F1")
+        self.help_menu.add_command(label=pad_menu("About"),command=self.about,accelerator="F1")
 
 
 
@@ -220,12 +290,19 @@ class Editor(tk.Tk):
         #Declaring all widget objects here
         self.linenumbers = TextLineNumbers(self, width=55)
         self.linenumbers.config(bg="#191919",border=0,highlightthickness=0)
-        self.main_text=CustomText(self,height=self.main_text_height,width=self.main_text_width,background="#111111",foreground="white",insertbackground="white")
+        
+        self.font=tkFont.Font(family="Courier", size=11, weight="normal")
+        self.main_text=CustomText(self,height=self.main_text_height,width=self.main_text_width,background="#111111",foreground="white",insertbackground="white",font=self.font)
         font=tkFont.Font(font=self.main_text['font'])
         self.main_text.config(border=0,highlightthickness=0,tabs=(font.measure(" "*4,)))
         self.linenumbers.attach(self.main_text)
-        self.main_scroll_bar=ttk.Scrollbar(self,command=self.main_text.yview)
-        self.main_text.configure(yscrollcommand=self.main_scroll_bar.set,undo=True,maxundo=-1,autoseparators=True)
+        
+        #Setting scrollbars
+        self.main_scroll_bar=ttk.Scrollbar(self,command=self.main_text.yview,style="My.Vertical.TScrollbar")
+        self.main_horizontal_scroll_bar=ttk.Scrollbar(self,orient=tk.HORIZONTAL,command=self.main_text.xview,style="My.Horizontal.TScrollbar")
+        
+        self.main_text.configure(yscrollcommand=self.main_scroll_bar.set,xscrollcommand=self.main_horizontal_scroll_bar.set,undo=True,maxundo=-1,autoseparators=True,wrap="none")
+        
         self.main_text.config(maxundo=20,padx=15,pady=10)
         self.footer=ttk.Label(self,textvariable=self.footer_text)
         self.footer.config(background="#313131",foreground="white")
@@ -279,7 +356,7 @@ class Editor(tk.Tk):
         self.footer_text.set("Line: 1\tCol: 0")
 
 
-    def _on_change(self, event):
+    def _on_change(self, event=None):
         self.linenumbers.redraw()
 
 
@@ -527,7 +604,7 @@ class TextLineNumbers(tk.Canvas):
     def __init__(self, *args, **kwargs):
         tk.Canvas.__init__(self, *args, **kwargs)
         self.textwidget = None
-        self.linenumberfont=tkFont.Font(family="Helvetica", size=10, weight="normal")
+        self.linenumberfont=tkFont.Font(family="Courier", size=10, weight="normal")
         self.linenumbercol=self.linenumberfont.measure("0")
     def attach(self, text_widget):
         self.textwidget = text_widget
@@ -543,13 +620,16 @@ class TextLineNumbers(tk.Canvas):
             y = dline[1]
             linenum = str(i).split(".")[0]
             x=50-self.linenumbercol*(len(linenum)+1)
-            self.create_text(x,y,anchor="nw", text=linenum,fill="white",font=('Helvetica', '10'))
+            if self.textwidget.index("insert linestart").split(".")[0]==linenum:
+                self.create_text(x,y,anchor="nw", text=linenum,fill="#40e0d0",font=("Courier",10,"bold"))
+            else:
+                self.create_text(x,y,anchor="nw", text=linenum,fill="white",font=self.linenumberfont)
             i = self.textwidget.index("%s+1line" % i)
 
 
 if __name__=="__main__":
     application = Editor()
-    application.minsize(200,100)
+    application.minsize(500,400)
     application.title("Py Notepad - Untitled")
     application.config(bg="#313131")
     application.mainloop()
