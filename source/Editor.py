@@ -2,6 +2,7 @@
 import Tkinter as tk
 import ttk
 import os
+import webbrowser
 import tkFont
 import tkFileDialog
 import tkMessageBox
@@ -272,7 +273,8 @@ class Editor(tk.Tk):
 
         #For help menu
 
-        self.help_menu.add_command(label=pad_menu("About"),command=self.about,accelerator="F1")
+        self.help_menu.add_command(label=pad_menu("Help"),command=lambda:webbrowser.open("https://www.github.com/GnikDroy/py-notepad",2),accelerator="F1")
+        self.help_menu.add_command(label=pad_menu("About"),command=self.about)
 
 
 

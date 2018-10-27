@@ -6,7 +6,7 @@
 <img src="https://raw.githubusercontent.com/GnikDroy/py-notepad/master/screenshots/screenshot.png">
 </p>
 
-**This project was for fun so, is not maintained. I work on it sometime as recreation. We would need to rewrite this in something modern if we wish to continue.**
+**This project was for fun so, is not maintained. I work on it sometimes as recreation. We would need to rewrite this in something modern if we wish to continue.**
 
 ## Features
 
@@ -55,7 +55,7 @@ keyword,keyword2......
 
 ### Line Numbers
 You can toggle them on/off. They are also fully compatible with word wrap
-and take very low resource.
+and take very low resource. Nothing special here.
 
 ### Custom build scripts
 The custom build scripts are just a bash script supplied with a filename.
@@ -93,7 +93,7 @@ Also notice that the language is denoted by it's extension.
 So for C#, the files would be: csbuild.sh, csexecute.sh and cscompile.sh
 It is not neccessary to use all of them. 
 
-** It is neccessary to register the language in the keyword file before creating build scripts for it. **
+**It is neccessary to register the language in the keyword file before creating build scripts for it.**
  
 
 ### All Major Keyboard Bindings
@@ -117,5 +117,7 @@ If you have Python installed then you can simply run `python Editor.py`
 
 ## Requirements
 - tkinter
+- ttk
+
 Everything else should be in the standard Python package.
 
