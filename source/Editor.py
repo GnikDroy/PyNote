@@ -233,7 +233,7 @@ class Editor(tk.Tk):
 
         #Set font tags here which will be later used to highlight the keywords.
 
-        self.main_text.tag_config("keyword",foreground="#4759d1")
+        self.main_text.tag_config("keyword",foreground="#5c6bce")
         self.main_text.tag_config("currentLine",background="#191919")
         self.main_text.tag_config("symbol",foreground="#f26957")
         self.main_text.tag_config("number",foreground="#dbe572")
@@ -314,6 +314,8 @@ class Editor(tk.Tk):
                 self.main_text.insert(1.0,file_descriptor.read())
                 self.update_keywords(filename)
                 file_descriptor.close()
+                if self.highlight_view.get():
+                    self.syntax_highlight()
                 self.saved=True
             except:
                 tkMessageBox.showerror("Unable to open file","Unable to open file")
@@ -335,7 +337,7 @@ class Editor(tk.Tk):
             self.saved=True
             def change_title():
                 self.title(self.name+" - "+self.filename)
-            self.after(100,change_title) #You need to add delay before changing title.
+            self.after(250,change_title) #You need to add delay before changing title.
             return True
             """
             except:
@@ -379,7 +381,8 @@ class Editor(tk.Tk):
             index=self.main_text.index("insert linestart")
             self.main_text.insert("insert",text)
             indexend=self.main_text.index("insert lineend")
-            self.syntax_highlight(None,index,indexend)
+            if self.highlight_view.get():
+                self.syntax_highlight(None,index,indexend)
             return "break"
         except:
             pass #These are for TCl errors.
