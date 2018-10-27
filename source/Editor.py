@@ -13,10 +13,9 @@ class Editor(tk.Tk):
 
         #This function is necessary to start tk
         tk.Tk.__init__(self)
-
-        #This is the keywords reserved for python (Used for highligting).
-        self.keywords=['False', 'None', 'True', 'and', 'as', 'assert', 'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except', 'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try', 'while', 'with', 'yield','print']
-
+        self.name="Py Notepad"
+        self.get_keywords("keywords.ini")
+        self.keywords=[]
         #This calls exit_editor when the cross button is pressed.
         self.protocol("WM_DELETE_WINDOW", self.exit_editor)
 
@@ -30,27 +29,43 @@ class Editor(tk.Tk):
         #This initializes all the gui elements
         self.initialize()
         self.footer_update()
-
-    def compile2(self,event=None):
+    
+    def get_keywords(self,filename):
+        self.languages={}
+        f=open(filename)
+        while True:
+            line1 = f.readline()
+            line2 = f.readline()
+            if not line2: break
+            language={
+                      "name":line1.split(",")[0].strip(),
+                      "keywords":[x.strip() for x in line2.split(",")],
+            }
+            self.languages[line1.split(",")[1].strip()]=language
+            lineextra=f.readline()
+    
+    def external_commands(self,command_type,event=None):
         if self.filename=="":
             self.save_file_as()
             return
         def comp(filename):
-            os.system("gnome-terminal --  buildscripts/python2.sh "+filename)
+            if not os.path.isfile(os.getcwd()+"/buildscripts/"+os.path.splitext(filename)[1].lower()[1:]+command_type+".sh"):
+                os.system("gnome-terminal -- buildscripts/error.sh")
+                return
+            os.system("gnome-terminal --  buildscripts/"+os.path.splitext(filename)[1].lower()[1:]+command_type+".sh "+filename)
         th=threading.Thread(target=comp,args=(self.filename,))
         th.deamon=True
         th.start()
+
+    def execute(self,even=None):
+        self.external_commands("execute")
         
-    def compile3(self,event=None):
-        if self.filename=="":
-            self.save_file_as()
-            return
-        def comp(filename):
-            os.system("gnome-terminal --  buildscripts/python3.sh "+filename)
-        th=threading.Thread(target=comp,args=(self.filename,))
-        th.deamon=True
-        th.start()
-
+    def build(self,event=None):
+        self.external_commands("build")
+        
+    def compile(self,event=None):
+        self.external_commands("compile")
+        
     def initialize(self):
         self.create_menu()
         self.create_mainFrame()
@@ -179,8 +194,9 @@ class Editor(tk.Tk):
         #For tools menu
 
         self.tools_menu.add_command(label="Add Date/Time",command=lambda:self.main_text.insert("insert",str(datetime.now()).split(".")[0]))
-        self.tools_menu.add_command(label="Execute",command=self.compile2,accelerator="F5")
-        self.tools_menu.add_command(label="Execute (Python 3)",command=self.compile3,accelerator="F6")
+        self.tools_menu.add_command(label="Execute",command=self.execute,accelerator="F5")
+        self.tools_menu.add_command(label="Build",command=self.build,accelerator="F6")
+        self.tools_menu.add_command(label="Compile",command=self.compile,accelerator="F8")
         
         
 
@@ -238,8 +254,9 @@ class Editor(tk.Tk):
         self.main_text.bind("<Control-x>",self.cut_selection)
         self.main_text.bind("<Control-Shift-H>",self.toggle_highlight_view)
         self.main_text.bind("<F1>",self.about)
-        self.main_text.bind("<F5>",self.compile2)
-        self.main_text.bind("<F6>",self.compile3)
+        self.main_text.bind("<F5>",self.execute)
+        self.main_text.bind("<F6>",self.build)
+        self.main_text.bind("<F8>",self.compile)
 
         #This updates the linenumbers
         self.main_text.bind("<<Change>>", self._on_change)
@@ -270,49 +287,67 @@ class Editor(tk.Tk):
         if self.filename=="" and self.main_text.get("1.0", 'end-1c')=="":
             pass
         else:
+            if self.saved:
+                self.main_text.delete(1.0,tk.END)
+                self.title(self.name+" - Untitiled")
+                return 
+                
             if tkMessageBox.askyesno("Save File?","Save current file?")==True:
                 self.save_file()
             else:
                 self.main_text.delete(1.0,tk.END)
+                self.title(self.name+" - Untitiled")
 
     def open_file(self,event=None):
         file_options = {}
         file_options["defaultextension"] = ".txt"
-        file_options["filetypes"] = [("All Files", ".*"), ("Text Files", ".txt"),("Python Files",".py")]
-        file_options["initialdir"] = "/"
+        file_options["filetypes"]=[(value["name"],"."+key)  for key, value in self.languages.iteritems()]
+        file_options["initialdir"] = os.getcwd()
         file_options['title'] = "Open File"
         filename=tkFileDialog.askopenfilename(**file_options)
         if filename!=() and filename!="" and filename!=None:
             try:
                 self.filename=filename
-                self.title="Editor -"+filename
+                self.title(self.name+" - "+self.filename)
                 file_descriptor=open(filename)
                 self.main_text.delete(1.0,tk.END)
                 self.main_text.insert(1.0,file_descriptor.read())
+                self.update_keywords(filename)
                 file_descriptor.close()
                 self.saved=True
             except:
                 tkMessageBox.showerror("Unable to open file","Unable to open file")
-
+    
+    def update_keywords(self,filename):
+        try:
+            self.keywords=self.languages[os.path.splitext(filename)[1].lower()[1:]]["keywords"]
+        except:
+            self.keywords=[]
+        
     def save_file(self,event=None):
         if self.filename=="":
             return self.save_file_as()
         else:
-            try:
-                self.saved=True
-                file_descriptor=open(self.filename,"w")
-                file_descriptor.write(self.main_text.get(1.0, 'end-1c'))
-                file_descriptor.close()
-                return True
+            #try
+            file_descriptor=open(self.filename,"w")
+            file_descriptor.write(self.main_text.get(1.0, 'end-1c'))
+            file_descriptor.close()
+            self.saved=True
+            def change_title():
+                self.title(self.name+" - "+self.filename)
+            self.after(100,change_title) #You need to add delay before changing title.
+            return True
+            """
             except:
                 tkMessageBox.showerror("Unable to save","Unable to Save")
                 return False
+            """
 
     def save_file_as(self):
         file_options = {}
         file_options["defaultextension"] = ".txt"
-        file_options["filetypes"] = [("All Files", ".*"), ("Text Files", ".txt"),("Python Files",".py")]
-        file_options["initialdir"] = "/"
+        file_options["filetypes"]=[(value["name"],"."+key)  for key, value in self.languages.iteritems()]
+        file_options["initialdir"] = os.getcwd()
         file_options['title'] = "Save file"
         filename=tkFileDialog.asksaveasfilename(**file_options)
         if filename!=() and filename!="":
@@ -321,10 +356,12 @@ class Editor(tk.Tk):
                 file_descriptor.write(self.main_text.get("1.0", 'end-1c'))
                 file_descriptor.close()
                 if self.filename=="":
+                    self.update_keywords(filename)
                     self.filename=filename
+                    self.title(self.name+" - "+self.filename)
                     self.saved=True
                 return True
-            except :
+            except:
                 tkMessageBox.showerror("Unable to save","Unable to Save")
                 return False
         else:
@@ -372,7 +409,10 @@ class Editor(tk.Tk):
         return str(self.main_text.index("insert")).split(".")[1]
 
     def footer_update(self,event=None):
+        if self.saved:
+            self.title("*"+self.name+" - "+self.filename)
         self.saved=False
+        
         if len(self.filename)<=80:
             self.footer_text.set(self.filename+"\t\t\tLine: "+self.no_of_lines()+"\t"+"Col: "+self.no_of_col())
         else:
@@ -426,7 +466,7 @@ class Editor(tk.Tk):
         self.main_text.tag_remove("string",start,end)
         self.main_text.tag_remove("comment",linestart,lineend)
 
-        parsers=[["keyword",r"\y(?:"+"?|".join(self.keywords)+r")\y",linestart,lineend],
+        parsers=[["keyword",r"\y(?:"+"|".join(self.keywords)+r")\y",linestart,lineend],
                  ["symbol",'[\+\-!@$%^&*\(\)\{\}/\[\]:;<>,\./\?\\=_\|~`]',linestart,lineend],
                  ["number",r"[?:0-9]",linestart,lineend],
                  ["comment","(?:#.*[^\"\'])",linestart,lineend],
@@ -507,6 +547,6 @@ class TextLineNumbers(tk.Canvas):
 if __name__=="__main__":
     application = Editor()
     application.minsize(200,100)
-    application.title("Py Notepad")
+    application.title("Py Notepad - Untitled")
     application.config(bg="#313131")
     application.mainloop()
