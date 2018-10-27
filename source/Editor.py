@@ -1,9 +1,10 @@
 import Tkinter as tk
 import ttk
+import os
 import tkFont
 import tkFileDialog
 import tkMessageBox
-import re
+import threading
 from datetime import datetime
 
 class Editor(tk.Tk):
@@ -22,7 +23,7 @@ class Editor(tk.Tk):
         #These are instance variables that are required for the program to run.
         self.filename=""
         self.saved=False
-
+        self.actively_highlighting=False
         #This calls selectall function when <control>+a is pressed.
         self.bind_class("Text","<Control-a>", self.selectall)
 
@@ -30,13 +31,33 @@ class Editor(tk.Tk):
         self.initialize()
         self.footer_update()
 
-
-
+    def compile2(self,event=None):
+        if self.filename=="":
+            self.save_file_as()
+            return
+        def comp(filename):
+            os.system("gnome-terminal --  buildscripts/python2.sh "+filename)
+        th=threading.Thread(target=comp,args=(self.filename,))
+        th.deamon=True
+        th.start()
+        
+    def compile3(self,event=None):
+        if self.filename=="":
+            self.save_file_as()
+            return
+        def comp(filename):
+            os.system("gnome-terminal --  buildscripts/python3.sh "+filename)
+        th=threading.Thread(target=comp,args=(self.filename,))
+        th.deamon=True
+        th.start()
 
     def initialize(self):
         self.create_menu()
         self.create_mainFrame()
         self.render_mainFrame()
+        # Uncomment below to use alternative highlighter.....
+        # Don't forget to disable previous higlighter
+        #self.highlighter=Highlighter(self.main_text)
 
 
     def render_mainFrame(self):
@@ -62,6 +83,24 @@ class Editor(tk.Tk):
             self.linenumbers.grid_remove()
         else:
             self.linenumbers.grid()
+            
+    
+    def toggle_highlight_view(self,event=None):
+        if not event is None:
+            self.highlight_view.set(not self.highlight_view.get())
+        if not self.highlight_view.get():
+            self.main_text.bind('<KeyRelease>',lambda _:self.highlight_current_line())
+            self.main_text.bind("<KeyRelease>",self.footer_update,add="+")
+            start="1.0"
+            end="end"
+            self.main_text.tag_remove("keyword",start,end)
+            self.main_text.tag_remove("symbol",start,end)
+            self.main_text.tag_remove("number",start,end)
+            self.main_text.tag_remove("string",start,end)
+            self.main_text.tag_remove("comment",start,end)
+        else:
+            self.main_text.bind("<KeyRelease>",self.syntax_highlight,add="+")
+            self.syntax_highlight()
 
     def toggle_footer_view(self):
         if not self.footer_view.get():
@@ -106,24 +145,27 @@ class Editor(tk.Tk):
         self.file_menu.add_command(label="Save",command=self.save_file,accelerator="Ctrl+S")
         self.file_menu.add_command(label="Save As",command=self.save_file_as)
         self.file_menu.add_separator()
-        self.file_menu.add_command(label="Quit",command=self.exit_editor,accelerator="Ctrl+Q")
+        self.file_menu.add_command(label="Quit",command=self.exit_editor)
 
 
 
         #For edit menu
 
-        self.edit_menu.add_command(label="Copy",command=self.copy_selection,accelerator="Ctrl+C")
-        self.edit_menu.add_command(label="Cut",command=self.cut_selection,accelerator="Ctrl+X")
-        self.edit_menu.add_command(label="Paste",command=self.paste_selection,accelerator="Ctrl+V")
+        self.edit_menu.add_command(label="Copy",command=lambda:self.focus_get().event_generate('<<Copy>>'),accelerator="Ctrl+C")
+        self.edit_menu.add_command(label="Cut",command=lambda:self.focus_get().event_generate('<<Cut>>'),accelerator="Ctrl+X")
+        self.edit_menu.add_command(label="Paste",command=lambda:self.focus_get().event_generate('<<Paste>>'),accelerator="Ctrl+V")
         self.edit_menu.add_command(label="Select All",command=lambda: self.main_text.tag_add("sel","1.0","end"),accelerator="Ctrl+A")
         self.edit_menu.add_separator()
-        self.edit_menu.add_command(label="Undo",command=self.undo_action)
+        self.edit_menu.add_command(label="Undo",command=self.undo_action,accelerator="Ctrl+Z")
         self.edit_menu.add_command(label="Redo",command=self.redo_action,accelerator="Ctrl+Y")
 
 
 
         #For view menu
-        self.view_menu.add_command(label="Highlight Syntax (.py)",command=self.syntax_highlight)
+        self.highlight_view=tk.BooleanVar()
+        self.highlight_view.set(True)
+        self.view_menu.add("checkbutton",variable=self.highlight_view,onvalue=True,offvalue=False
+                            ,label="Highlight Syntax (.py)",command=self.toggle_highlight_view,accelerator="Ctrl+Shift+h")
         self.view_menu.add_separator()
         self.linenumber_view=tk.BooleanVar()
         self.linenumber_view.set(True)
@@ -137,12 +179,14 @@ class Editor(tk.Tk):
         #For tools menu
 
         self.tools_menu.add_command(label="Add Date/Time",command=lambda:self.main_text.insert("insert",str(datetime.now()).split(".")[0]))
-
-
+        self.tools_menu.add_command(label="Execute",command=self.compile2,accelerator="F5")
+        self.tools_menu.add_command(label="Execute (Python 3)",command=self.compile3,accelerator="F6")
+        
+        
 
         #For help menu
 
-        self.help_menu.add_command(label="About",command=self.about)
+        self.help_menu.add_command(label="About",command=self.about,accelerator="F1")
 
 
 
@@ -189,6 +233,13 @@ class Editor(tk.Tk):
         self.main_text.bind("<Control-o>",self.open_file)
         self.main_text.bind("<Control-n>",self.new_file)
         self.main_text.bind("<Control-q>",self.exit_editor)
+        self.main_text.bind("<Control-c>",self.copy_selection)
+        self.main_text.bind("<Control-v>",self.paste_selection)
+        self.main_text.bind("<Control-x>",self.cut_selection)
+        self.main_text.bind("<Control-Shift-H>",self.toggle_highlight_view)
+        self.main_text.bind("<F1>",self.about)
+        self.main_text.bind("<F5>",self.compile2)
+        self.main_text.bind("<F6>",self.compile3)
 
         #This updates the linenumbers
         self.main_text.bind("<<Change>>", self._on_change)
@@ -283,29 +334,22 @@ class Editor(tk.Tk):
         event.widget.tag_add("sel","1.0","end")
 
     def copy_selection(self,event=None):
-        try:
-            self.main_text.clipboard_clear()
-            text=self.main_text.get("sel.first","sel.last")
-            if text!="" and text!=None:
-                self.main_text.clipboard_append(text)
-        except:
-            pass
-
+        pass
+        
     def paste_selection(self,event=None):
         try:
-            self.main_text.delete("sel.first","sel.last")
             text=self.main_text.selection_get(selection="CLIPBOARD")
+            index=self.main_text.index("insert linestart")
             self.main_text.insert("insert",text)
+            indexend=self.main_text.index("insert lineend")
+            self.syntax_highlight(None,index,indexend)
+            return "break"
         except:
             pass #These are for TCl errors.
-
+        
     def cut_selection(self,event=None):
-        try:
-            self.copy_selection()
-            self.main_text.delete("sel.first","sel.last")
-        except:
-            pass #This is for TCL errors.
-
+        pass
+        
     def undo_action(self):
         try:
             self.main_text.edit_undo()
@@ -318,7 +362,7 @@ class Editor(tk.Tk):
         except:
             pass
 
-    def about(self):
+    def about(self,event=None):
         tkMessageBox.showinfo(title="About",message="A cross-platform text-editor written in Python.\n\nDeveloper:Gnik Droy\ngnikdroy@gmail.com\n\nAll Rights Reserved.")
 
     def no_of_lines(self):
@@ -341,6 +385,7 @@ class Editor(tk.Tk):
             self.main_text.tag_remove("currentLine",1.0,"end")
             #Don't highlight current line while text is being selected
             self.main_text.tag_add("currentLine","insert linestart","insert lineend+1c")
+            self.main_text.tag_lower("currentLine","sel")
         self.after(10,delay)
 
     def highlight_pattern(self,pattern, tag, start="1.0", end="end",
@@ -359,20 +404,32 @@ class Editor(tk.Tk):
             self.main_text.tag_add(tag, index, "%s+%sc" % (index, count.get()))
         self.main_text.mark_unset("searchLimit",end)
 
-    def syntax_highlight(self,event=None):
+    def syntax_highlight(self,event=None,hstart=None,hend=None):
+        if self.actively_highlighting:
+            return
+        self.actively_highlighting=True
         start="1.0"
         end="end"
-
-        self.main_text.tag_remove("keyword",start,end)
-        self.main_text.tag_remove("symbol",start,end)
-        self.main_text.tag_remove("number",start,end)
+        linestart="insert linestart"
+        lineend="insert lineend+1c"
+        if event==None:
+            linestart="1.0"
+            lineend="end"
+        if not hstart==None:
+            linestart=hstart
+        if not hend==None:
+            lineend=hend
+        
+        self.main_text.tag_remove("keyword",linestart,lineend)
+        self.main_text.tag_remove("symbol",linestart,lineend)
+        self.main_text.tag_remove("number",linestart,lineend)
         self.main_text.tag_remove("string",start,end)
-        self.main_text.tag_remove("comment",start,end)
+        self.main_text.tag_remove("comment",linestart,lineend)
 
-        parsers=[["keyword",r"\y(?:"+"?|".join(self.keywords)+r")\y","insert linestart","insert lineend+1c"],
-                 ["symbol",'[\+\-!@$%^&*\(\)\{\}/\[\]:;<>,\./\?\\=_\|~`]',"insert linestart","insert lineend+1c"],
-                 ["number",r"[?:0-9]","insert linestart","insert lineend+1c"],
-                 ["comment","(?:#.*)","insert linestart","insert lineend+1c"],
+        parsers=[["keyword",r"\y(?:"+"?|".join(self.keywords)+r")\y",linestart,lineend],
+                 ["symbol",'[\+\-!@$%^&*\(\)\{\}/\[\]:;<>,\./\?\\=_\|~`]',linestart,lineend],
+                 ["number",r"[?:0-9]",linestart,lineend],
+                 ["comment","(?:#.*[^\"\'])",linestart,lineend],
                  ["string","(?:\".+?\")","1.0","end"],
                  ["string","(?:'.+?')","1.0","end"],
                  ["string","(?:\"\"\".*?\"\"\")","1.0","end"],
@@ -380,19 +437,20 @@ class Editor(tk.Tk):
                  ]
         for parser in parsers:
             self.highlight_pattern(parser[1],parser[0],parser[2],parser[3],regexp=True)
-
-
-        #self.main_text.insert('end'," ")
-
+        self.actively_highlighting=False
+        
     def exit_editor(self,event=None):
         if self.saved==True:
             self.destroy()
         else:
-            if tkMessageBox.askyesno("Exit?","Save file before exit?")==True:
+            choice=tkMessageBox.askquestion("Exit?","Save file before exit?",type=tkMessageBox.YESNOCANCEL,default=tkMessageBox.CANCEL)
+            if choice=="yes":
                 if self.save_file():
                     self.destroy()
-            else:
+            elif choice=="no":
                 self.destroy()
+            else:
+                return 
 
 class CustomText(tk.Text):
     def __init__(self, *args, **kwargs):
@@ -445,9 +503,10 @@ class TextLineNumbers(tk.Canvas):
             self.create_text(x,y,anchor="nw", text=linenum,fill="white",font=('Helvetica', '10'))
             i = self.textwidget.index("%s+1line" % i)
 
+
 if __name__=="__main__":
     application = Editor()
     application.minsize(200,100)
-    application.title("Editor")
+    application.title("Py Notepad")
     application.config(bg="#313131")
     application.mainloop()
