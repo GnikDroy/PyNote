@@ -175,6 +175,7 @@ class Editor(tk.Tk):
             start="1.0"
             end="end"
             self.main_text.tag_remove("keyword",start,end)
+            self.main_text.tag_remove("link",start,end)
             self.main_text.tag_remove("symbol",start,end)
             self.main_text.tag_remove("number",start,end)
             self.main_text.tag_remove("string",start,end)
@@ -314,12 +315,13 @@ class Editor(tk.Tk):
 
         self.main_text.tag_config("keyword",foreground="#5c6bce")
         self.main_text.tag_config("currentLine",background="#191919")
+        newfont=tkFont.Font(family="Courier", size=11, slant="italic")
+        newfont.configure(underline=True)
+        self.main_text.tag_config("link",foreground="#FF895C",font=newfont)
         self.main_text.tag_config("symbol",foreground="#f26957")
         self.main_text.tag_config("number",foreground="#dbe572")
         self.main_text.tag_config("string",foreground="#55c431")
         self.main_text.tag_config("comment",foreground="grey")
-
-
 
 
         #Set the bindings here For shortcuts
@@ -545,13 +547,15 @@ class Editor(tk.Tk):
         self.main_text.tag_remove("keyword",linestart,lineend)
         self.main_text.tag_remove("symbol",linestart,lineend)
         self.main_text.tag_remove("number",linestart,lineend)
+        self.main_text.tag_remove("link",linestart,lineend)
         self.main_text.tag_remove("string",start,end)
         self.main_text.tag_remove("comment",linestart,lineend)
 
         parsers=[["keyword",r"\y(?:"+"|".join(self.keywords)+r")\y",linestart,lineend],
                  ["symbol",'[\+\-!@$%^&*\(\)\{\}/\[\]:;<>,\./\?\\=_\|~`]',linestart,lineend],
-                 ["number",r"[?:0-9]",linestart,lineend],
+                 ["number",r"[0-9]",linestart,lineend],
                  ["comment","(?:#.*[^\"\'])",linestart,lineend],
+                 ["link","(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9]\.[^\s]{2,})",linestart,lineend],
                  ["string","(?:\".+?\")","1.0","end"],
                  ["string","(?:'.+?')","1.0","end"],
                  ["string","(?:\"\"\".*?\"\"\")","1.0","end"],
@@ -559,6 +563,9 @@ class Editor(tk.Tk):
                  ]
         for parser in parsers:
             self.highlight_pattern(parser[1],parser[0],parser[2],parser[3],regexp=True)
+        self.main_text.tag_lower("link","symbol")
+        self.main_text.tag_lower("link","comment")
+        self.main_text.tag_lower("link","number")
         self.actively_highlighting=False
         
     def exit_editor(self,event=None):
